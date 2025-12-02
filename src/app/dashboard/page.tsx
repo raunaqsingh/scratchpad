@@ -20,6 +20,9 @@ export default function DashboardPage() {
   const [equityHistory, setEquityHistory] = useState<any[]>([]);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     // Load property from localStorage (in production, this would come from API)
     const storedProperty = localStorage.getItem("roam_property");
     const storedRateAdvantage = localStorage.getItem("roam_rate_advantage");
@@ -29,26 +32,43 @@ export default function DashboardPage() {
       return;
     }
 
-    const prop: Property = JSON.parse(storedProperty);
-    setProperty(prop);
+    try {
+      const prop: Property = JSON.parse(storedProperty);
+      
+      // Convert date strings back to Date objects
+      if (prop.mortgage) {
+        prop.mortgage.originationDate = new Date(prop.mortgage.originationDate);
+        prop.mortgage.maturityDate = new Date(prop.mortgage.maturityDate);
+      }
+      if (prop.valuation) {
+        prop.valuation.estimateDate = new Date(prop.valuation.estimateDate);
+      }
+      prop.createdAt = new Date(prop.createdAt);
+      prop.updatedAt = new Date(prop.updatedAt);
+      
+      setProperty(prop);
 
-    if (storedRateAdvantage) {
-      setRateAdvantage(JSON.parse(storedRateAdvantage));
-    } else if (prop.mortgage) {
-      // Calculate if not stored
-      const result = calculateRateAdvantage(
-        prop.mortgage,
-        MOCK_MARKET_RATE,
-        MOCK_NEIGHBORHOOD_AVG_RATE,
-        MOCK_NEIGHBORHOOD_RATES
-      );
-      setRateAdvantage(result);
-    }
+      if (storedRateAdvantage) {
+        setRateAdvantage(JSON.parse(storedRateAdvantage));
+      } else if (prop.mortgage) {
+        // Calculate if not stored
+        const result = calculateRateAdvantage(
+          prop.mortgage,
+          MOCK_MARKET_RATE,
+          MOCK_NEIGHBORHOOD_AVG_RATE,
+          MOCK_NEIGHBORHOOD_RATES
+        );
+        setRateAdvantage(result);
+      }
 
-    // Generate equity history
-    if (prop.mortgage && prop.valuation) {
-      const history = generateEquityHistory(prop.mortgage, prop.valuation, 12);
-      setEquityHistory(history);
+      // Generate equity history
+      if (prop.mortgage && prop.valuation) {
+        const history = generateEquityHistory(prop.mortgage, prop.valuation, 12);
+        setEquityHistory(history);
+      }
+    } catch (error) {
+      console.error("Error loading property:", error);
+      router.push("/");
     }
   }, [router]);
 
